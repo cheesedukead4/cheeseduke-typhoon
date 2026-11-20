@@ -155,10 +155,11 @@
 
   /**
    * @param official  OfficialStatus
-   * @param settings  { watchedCounties: ['臺南市', ...], hqCounty: '臺南市', autoAdjust, autoCreate }
+   * @param settings  { watchedCounties: ['臺南市', ...], hqCounty: '臺南市', sites: { '臺北市': ['A11', '京站'] }, autoAdjust, autoCreate }
+   *                  sites＝各縣市的門市／據點，只用來顯示（公告是以縣市為單位）
    * @param event     目前的應變事件（可為 null）
    * @returns {
-   *   warningActive, typhoon, closures: [{ county, day, kind, date, text }], hqClosed, scenario: 'A'|'B'|null,
+   *   warningActive, typhoon, closures: [{ county, sites, day, kind, date, text }], hqClosed, scenario: 'A'|'B'|null,
    *   phase: 'pre'|'during'|'after'|null, reason, vars: {}, createEvent: null|{ name, typhoon }, summary: [文字]
    * }
    */
@@ -167,6 +168,8 @@
     settings = settings || {};
     var watched = (settings.watchedCounties || []).map(normCounty);
     var hq = normCounty(settings.hqCounty || '臺南市');
+    var sitesOf = function (county) { return sitesFor(settings, county); };
+    var withSites = function (county) { var s = sitesOf(county); return county + (s.length ? '（' + s.join('、') + '）' : ''); };
     var t = official.typhoon && official.typhoon.status === 'Actual' ? official.typhoon : null; // 測試訊息（status=Test）一律忽略
     if (t && t.expires && Date.parse(t.expires) < Date.now() && t.warningType !== 'lifted' && official.source !== 'simulated') t = null; // 過期的警報
     var warningActive = !!(t && /^(sea|land|sea_land)$/.test(t.warningType));
@@ -177,7 +180,7 @@
       ['today', 'tomorrow'].forEach(function (day) {
         if (!isOff(c[day])) return;
         var d = cl.date ? addDays(cl.date, day === 'tomorrow' ? 1 : 0) : null;
-        closures.push({ county: c.county, day: day, kind: c[day], date: d ? fmtDay(d) : (day === 'today' ? '今天' : '明天'), text: c.text });
+        closures.push({ county: c.county, sites: sitesOf(c.county), day: day, kind: c[day], date: d ? fmtDay(d) : (day === 'today' ? '今天' : '明天'), text: c.text });
       });
     });
     var hqClosed = closures.some(function (c) { return c.county === hq && c.kind === 'closed'; });
@@ -189,7 +192,7 @@
 
     if (t) r.summary.push('中央氣象署：' + typhoonLabel(t.name) + ' ' + (t.warningType === 'lifted' ? '解除颱風警報' : t.headline) + (t.reportNo ? '（第' + t.reportNo + '報）' : ''));
     if (closures.length) {
-      r.summary.push('人事行政總處：' + closures.map(function (c) { return c.county + c.date + (c.kind === 'partial' ? '部分地區' : '') + '停止上班'; }).join('、'));
+      r.summary.push('人事行政總處：' + closures.map(function (c) { return withSites(c.county) + c.date + (c.kind === 'partial' ? '部分地區' : '') + '停止上班'; }).join('、'));
     } else if (cl.counties && (cl.updatedAt || cl.date)) {
       r.summary.push('人事行政總處：關注的縣市目前沒有停班');
     }
@@ -197,7 +200,7 @@
     var cur = event ? event.currentPhase : null;
     if (closures.length) {
       r.phase = 'during';
-      r.reason = '人事行政總處公告 ' + uniq(closures.map(function (c) { return c.county; })).join('、') + ' 停止上班';
+      r.reason = '人事行政總處公告 ' + uniq(closures.map(function (c) { return withSites(c.county); })).join('、') + ' 停止上班';
     } else if (warningActive) {
       r.phase = 'pre';
       r.reason = '中央氣象署發布' + typhoonLabel(t.name) + t.headline;
@@ -219,6 +222,31 @@
     return r;
   }
   function uniq(a) { return a.filter(function (x, i) { return a.indexOf(x) === i; }); }
+
+  // ---------- 各縣市的門市／據點（只用來顯示）----------
+  function sitesFor(settings, county) {
+    var map = (settings && settings.sites) || {}, key = normCounty(county), out = [];
+    Object.keys(map).forEach(function (k) { if (normCounty(k) === key) out = out.concat(map[k] || []); });
+    return uniq(out.map(function (s) { return String(s).trim(); }).filter(Boolean));
+  }
+  // 「臺北市：A11、京站」一行一個縣市 → { '臺北市': ['A11', '京站'] }；看不懂的行回傳在 bad
+  function parseSites(text) {
+    var sites = {}, bad = [];
+    String(text || '').split(/\r?\n/).forEach(function (line) {
+      var s = line.trim();
+      if (!s) return;
+      var m = /^(.+?)[：:]\s*(.*)$/.exec(s);
+      var county = m ? normCounty(m[1]) : '';
+      if (!m || COUNTIES.indexOf(county) < 0) { bad.push(s); return; }
+      var names = m[2].split(/[、,，\/／\s]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+      if (names.length) sites[county] = uniq((sites[county] || []).concat(names));
+    });
+    return { sites: sites, bad: bad };
+  }
+  function formatSites(sites) {
+    return Object.keys(sites || {}).filter(function (k) { return (sites[k] || []).length; })
+      .map(function (k) { return k + '：' + sites[k].join('、'); }).join('\n');
+  }
   function isForward(from, to) { return to in PHASE_ORDER && (!(from in PHASE_ORDER) || PHASE_ORDER[to] > PHASE_ORDER[from]); }
 
   /**
@@ -265,6 +293,7 @@
   return {
     COUNTIES: COUNTIES, SYSTEM_ACTOR: SYSTEM_ACTOR,
     normCounty: normCounty, parseTyphoonCap: parseTyphoonCap, parseDgpaHtml: parseDgpaHtml, classifyClosure: classifyClosure,
-    evaluate: evaluate, planAutoUpdate: planAutoUpdate, matchEvent: matchEvent, fmtDay: fmtDay, typhoonLabel: typhoonLabel, isForward: isForward
+    evaluate: evaluate, planAutoUpdate: planAutoUpdate, matchEvent: matchEvent, fmtDay: fmtDay, typhoonLabel: typhoonLabel, isForward: isForward,
+    sitesFor: sitesFor, parseSites: parseSites, formatSites: formatSites
   };
 });

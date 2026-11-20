@@ -30,7 +30,7 @@
     view: 'checklist', eventId: null, event: null, events: [], user: null, browse: false,
     dept: null, phase: 'current', show: 'all', q: '',
     expanded: {}, editingNote: null, vars: {}, openOriginals: {},
-    settings: { watchedCounties: ['臺南市'], hqCounty: '臺南市', autoAdjust: true, autoCreate: true },
+    settings: { watchedCounties: ['臺南市', '臺北市'], hqCounty: '臺南市', sites: { '臺北市': ['A11', '京站'] }, autoAdjust: true, autoCreate: true },
     official: null, offEval: null
   };
 
@@ -870,6 +870,8 @@
     await loadEvents();
     if (plan.currentPhase) officialToast(`依官方公告切換到「${PH[plan.currentPhase].name}」：${r.reason}`);
   }
+  function sitesOf(c) { return Official ? Official.sitesFor(state.settings, c) : []; }
+  function countyWithSites(c) { const s = sitesOf(c); return c + (s.length ? `（${s.join('、')}）` : ''); }
   function watchedList() {
     const s = state.settings;
     const list = [s.hqCounty].concat(s.watchedCounties || []);
@@ -906,7 +908,7 @@
       <button type="button" class="btn btn-sm" data-act="official-refresh">${icon('refresh')}立即更新</button>
       ${canManage() ? `<button type="button" class="btn btn-sm" data-act="official-settings">${icon('gear')}連動設定</button>` : ''}
       ${Store.setSimulatedOfficial && canManage() ? `<button type="button" class="btn btn-sm" data-act="official-sim">${icon('flask')}測試模式</button>` : ''}</div>`;
-    const conf = `<p class="op-conf">總公司：<b>${esc(s.hqCounty)}</b>・關注縣市：${esc(watchedList().join('、'))}・自動切換階段：${s.autoAdjust ? '開' : '關'}・颱風警報自動建立事件：${s.autoCreate ? '開' : '關'}</p>`;
+    const conf = `<p class="op-conf">總公司：<b>${esc(s.hqCounty)}</b>・關注縣市：${esc(watchedList().map(countyWithSites).join('、'))}・自動切換階段：${s.autoAdjust ? '開' : '關'}・颱風警報自動建立事件：${s.autoCreate ? '開' : '關'}</p>`;
     if (!off || !r) {
       return `<section class="card panel official-panel" id="official"><div class="op-head"><h3>${icon('storm')}官方公告連動</h3>${btns}</div>
         <p class="muted">還沒有接上官方公告。正式上線後，系統會定時抓<b>中央氣象署颱風警報</b>與<b>人事行政總處停班停課公告</b>：發布警報時自動建立應變事件、關注的縣市停班時切到「停班期間」、警報解除且恢復上班時切到「恢復營運」，並自動帶入簡訊的颱風名稱與停班日期。現在可以按「測試模式」用模擬公告試試看。</p>${conf}</section>`;
@@ -921,7 +923,8 @@
     const cell = v => v ? `<span class="st st-${v}">${CLOSE_LABEL[v]}</span>` : `<span class="muted">${cl && cl.empty ? '照常' : '—'}</span>`;
     const rows = watchedList().map(c => {
       const x = byCounty[c] || {};
-      return `<tr><th scope="row">${esc(c)}${c === s.hqCounty ? '<span class="hq">總公司</span>' : ''}</th><td>${cell(x.today)}</td><td>${cell(x.tomorrow)}</td><td class="op-text">${esc(x.text || (cl && cl.empty ? '無停班停課訊息' : ''))}</td></tr>`;
+      const st = sitesOf(c);
+      return `<tr><th scope="row">${esc(c)}${c === s.hqCounty ? '<span class="hq">總公司</span>' : ''}${st.length ? `<div class="sites">${esc(st.join('、'))}</div>` : ''}</th><td>${cell(x.today)}</td><td>${cell(x.tomorrow)}</td><td class="op-text">${esc(x.text || (cl && cl.empty ? '無停班停課訊息' : ''))}</td></tr>`;
     }).join('');
     const next = r.phase ? `<p class="op-next">依公告應在「<b>${esc(PH[r.phase].name)}</b>」${r.reason ? `：${esc(r.reason)}` : ''}${r.scenario ? `・生產部情境 ${r.scenario}` : ''}</p>` : '';
     const errs = (off.errors || []).length ? `<p class="src-note">讀取問題：${esc(off.errors.join('；'))}</p>` : '';
@@ -945,6 +948,8 @@
         <fieldset class="county-grid"><legend>關注的縣市<span class="hint">門市、物流、主要客戶所在地。這些縣市任何一個停班，就切到「停班期間」。</span></legend>
           ${C.map(c => `<label class="ck"><input type="checkbox" name="w" value="${c}"${(s.watchedCounties || []).includes(c) || c === s.hqCounty ? ' checked' : ''}>${c}</label>`).join('')}
         </fieldset>
+        <label>各縣市的門市／據點<textarea name="sites" rows="3" placeholder="臺北市：A11、京站">${esc(Official.formatSites(s.sites))}</textarea><span class="hint">一行一個縣市，格式「臺北市：A11、京站」。停班時會一起顯示門市名稱；有寫門市的縣市會自動列入關注。</span></label>
+        <p class="err" data-err></p>
         <label class="ck-row"><input type="checkbox" name="autoAdjust"${s.autoAdjust ? ' checked' : ''}><span>依公告自動切換階段<span class="hint">關掉的話只會顯示建議，由主管自己按切換。</span></span></label>
         <label class="ck-row"><input type="checkbox" name="autoCreate"${s.autoCreate ? ' checked' : ''}><span>中央氣象署發布颱風警報時，自動建立應變事件</span></label>
       </div>`,
@@ -953,7 +958,10 @@
         const hq = String(fd.get('hq'));
         const w = fd.getAll('w').map(String);
         if (!w.includes(hq)) w.unshift(hq);
-        state.settings = await Store.saveSettings({ hqCounty: hq, watchedCounties: w, autoAdjust: fd.get('autoAdjust') === 'on', autoCreate: fd.get('autoCreate') === 'on' });
+        const ps = Official.parseSites(fd.get('sites'));
+        if (ps.bad.length) { $('[data-err]', dlg).textContent = `看不懂這幾行（要寫成「臺北市：A11、京站」，縣市名稱要完整）：${ps.bad.join('／')}`; return false; }
+        Object.keys(ps.sites).forEach(c => { if (!w.includes(c)) w.push(c); });
+        state.settings = await Store.saveSettings({ hqCounty: hq, watchedCounties: w, sites: ps.sites, autoAdjust: fd.get('autoAdjust') === 'on', autoCreate: fd.get('autoCreate') === 'on' });
         const msgs = await syncOfficial();
         render();
         toast(msgs.length ? '連動設定已儲存；' + msgs.join('；') : '連動設定已儲存', { ms: msgs.length ? 5000 : 2600 });
@@ -971,7 +979,7 @@
     ((sim && sim.closures && sim.closures.counties) || []).forEach(c => { cur[c.county] = c; });
     const opts = v => [['', '未公告'], ['normal', '照常上班'], ['closed', '停止上班'], ['partial', '部分地區停班']]
       .map(([k, l]) => `<option value="${k}"${(v || '') === k ? ' selected' : ''}>${l}</option>`).join('');
-    const rows = watchedList().map(c => `<tr><th scope="row">${esc(c)}</th>
+    const rows = watchedList().map(c => `<tr><th scope="row">${esc(countyWithSites(c))}</th>
       <td><select name="d0:${esc(c)}" aria-label="${esc(c)}今天">${opts(cur[c] && cur[c].today)}</select></td>
       <td><select name="d1:${esc(c)}" aria-label="${esc(c)}明天">${opts(cur[c] && cur[c].tomorrow)}</select></td></tr>`).join('');
     const wt = sim ? (t.warningType || '') : 'sea';

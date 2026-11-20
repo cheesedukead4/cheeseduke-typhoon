@@ -44,7 +44,8 @@
  *     auto:     { applied: { [階段]: 時間 }, seenWarning }  自動切換過哪些階段（每個階段只自動切一次）
  *     autoVars: { [欄位]: 值 }                            系統帶入的範本欄位值（人工改過就不再覆蓋）
  *   }
- *   Settings = { watchedCounties: ['臺南市', ...], hqCounty: '臺南市', autoAdjust: true, autoCreate: true }
+ *   Settings = { watchedCounties: ['臺南市', '臺北市', ...], hqCounty: '臺南市', sites: { '臺北市': ['A11', '京站'] }, autoAdjust: true, autoCreate: true }
+ *              sites＝各縣市的門市／據點（只用來顯示）
  *   時間一律是 ISO 8601 字串（UTC）。by 是使用者顯示名稱。
  */
 (function () {
@@ -56,7 +57,8 @@
   var SIM_KEY = 'typhoon-checklist:official-sim';
   var OFFICIAL_URL = 'official-status.json'; // 單機版：開發工具/official-poller.mjs 寫出的檔案，和 index.html 放同一層
   var SYSTEM = '系統（官方公告）';
-  var DEFAULT_SETTINGS = { watchedCounties: ['臺南市'], hqCounty: '臺南市', autoAdjust: true, autoCreate: true };
+  // 預設關注：總公司所在的臺南市、臺北門市（A11、京站）。管理員可以在「連動設定」改
+  var DEFAULT_SETTINGS = { watchedCounties: ['臺南市', '臺北市'], hqCounty: '臺南市', sites: { '臺北市': ['A11', '京站'] }, autoAdjust: true, autoCreate: true };
   var LOG_LIMIT = 1000;
   var PHASES = ['pre', 'during', 'after'];
   var STATUSES = ['todo', 'done', 'na'];
@@ -266,8 +268,13 @@
       var clean = {
         watchedCounties: Array.isArray(s.watchedCounties) ? s.watchedCounties.slice() : DEFAULT_SETTINGS.watchedCounties.slice(),
         hqCounty: String(s.hqCounty || DEFAULT_SETTINGS.hqCounty),
+        sites: {},
         autoAdjust: s.autoAdjust !== false, autoCreate: s.autoCreate !== false
       };
+      Object.keys(s.sites || {}).forEach(function (k) {
+        var names = (Array.isArray(s.sites[k]) ? s.sites[k] : []).map(function (x) { return String(x).trim().slice(0, 20); }).filter(Boolean).slice(0, 30);
+        if (names.length) clean.sites[String(k)] = names;
+      });
       B.saveSettings(clean);
       return Promise.resolve(clean);
     },
