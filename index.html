@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0F3F25">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="颱風檢核">
+  <meta name="description" content="起士公爵颱風應變檢核清單：各部門應變步驟、進度與簡訊範本">
+  <title>颱風應變檢核清單</title>
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- 品牌字型（暫用）：標題 Noto Serif TC、內文 Noto Sans TC；連不到網路時改用系統字型，不影響功能 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-row">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M9 17l5 5 9-11"/></svg>
+        <div>
+          <h1>颱風應變檢核清單</h1>
+          <p class="brand-sub" id="brandSub">起士公爵・各部門應變步驟</p>
+        </div>
+      </div>
+      <div class="event-picker">
+        <label class="sr-only" for="eventSelect">應變事件</label>
+        <select id="eventSelect"></select>
+        <button type="button" class="btn btn-accent" data-act="event-new" aria-label="新增應變事件">
+          <svg class="i" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg><span>新增應變事件</span>
+        </button>
+      </div>
+      <button type="button" class="sync-pill" data-act="sync" id="syncPill" hidden></button>
+      <button type="button" class="user-chip" data-act="user" id="userChip"></button>
+    </div>
+    <nav class="wrap tabs" role="tablist" aria-label="頁面">
+      <button type="button" role="tab" data-view="checklist">檢核清單</button>
+      <button type="button" role="tab" data-view="overview">進度總覽</button>
+      <button type="button" role="tab" data-view="templates">簡訊範本與話術</button>
+      <button type="button" role="tab" data-view="users" hidden>人員與權限</button>
+    </nav>
+  </header>
+
+  <main class="wrap" id="main" tabindex="-1"></main>
+
+  <dialog id="dlg" aria-labelledby="dlgTitle"></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/cloud-sync.js"></script>
+  <script src="js/checklist-data.js"></script>
+  <script src="js/official.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
