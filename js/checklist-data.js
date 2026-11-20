@@ -1,4 +1,4 @@
-/* 自動產生，請勿手動修改：python tools/excel_to_json.py
+/* 自動產生，請勿手動修改：python 開發工具/excel_to_json.py
  * 來源：颱風應變措施.xlsx　內容同 data/checklist-template.json */
 window.TYPHOON_CHECKLIST = {
   "schemaVersion": 1,

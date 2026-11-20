@@ -1,7 +1,7 @@
 /* 颱風應變檢核清單｜離線快取（沿用倉儲 IT 整合中心的做法）
    網站檔案先走網路，4 秒沒回應或失敗才用快取。雲端資料、官方公告的請求不經過快取（不同網域、或網址帶參數）。
    修改網站檔案後，把 CACHE 的版本號加 1；新增檔案時也要加進 ASSETS。 */
-var CACHE = 'tc-app-v1';
+var CACHE = 'tc-app-v2';
 var NET_TIMEOUT_MS = 4000;
 var ASSETS = [
   './', './index.html', './config.js', './manifest.webmanifest',

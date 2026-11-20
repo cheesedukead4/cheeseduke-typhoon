@@ -54,7 +54,7 @@
   var USER_KEY = 'typhoon-checklist:user';
   var SETTINGS_KEY = 'typhoon-checklist:settings';
   var SIM_KEY = 'typhoon-checklist:official-sim';
-  var OFFICIAL_URL = 'official-status.json'; // 單機版：tools/official-poller.mjs 寫出的檔案，和 index.html 放同一層
+  var OFFICIAL_URL = 'official-status.json'; // 單機版：開發工具/official-poller.mjs 寫出的檔案，和 index.html 放同一層
   var SYSTEM = '系統（官方公告）';
   var DEFAULT_SETTINGS = { watchedCounties: ['臺南市'], hqCounty: '臺南市', autoAdjust: true, autoCreate: true };
   var LOG_LIMIT = 1000;
