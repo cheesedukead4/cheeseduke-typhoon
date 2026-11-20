@@ -13,5 +13,5 @@ window.TC_AUTH = {
 };
 
 window.TC_CLOUD = {
-  url: ''
+  url: 'https://script.google.com/macros/s/AKfycbw5biaVbSQUIRXCoTm1LEWpr43HT1SK8-WnMNqu2aeR0R_hfLWrGHN-4ASbuqQTqER7rQ/exec'
 };
